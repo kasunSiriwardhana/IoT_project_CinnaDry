@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CinnaDry Advanced Controller</title>
+  <style>
+    :root {
+      --bg: #f8fafc;            /* Clean Slate 50 */
+      --card: #ffffff;          /* Pure White */
+      --border: #e2e8f0;        /* Light Slate 200 */
+      --text-main: #0f172a;     /* Deep Slate 900 */
+      --text-muted: #64748b;    /* Slate 500 */
+      --accent: #0284c7;        /* Sky Blue 600 */
+      --temp: #ea580c;          /* High-contrast Orange */
+      --humid: #0284c7;         /* High-contrast Blue */
+      --active-heat: #dc2626;   /* Red */
+      --active-fan: #16a34a;    /* Emerald Green */
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      margin: 0;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text-main);
+      letter-spacing: -0.5px;
+    }
+    .container { width: 100%; max-width: 820px; display: flex; flex-direction: column; gap: 18px; }
+
+    /* Control Banner */
+    .banner {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+    .input-grp { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 500; }
+    input[type="number"] {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 7px 10px;
+      border-radius: 6px;
+      width: 70px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .btn-start { background: #16a34a; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .btn-start:hover { background: #15803d; }
+    .btn-stop { background: #dc2626; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+    .btn-stop:hover { background: #b91c1c; }
+
+    .progress-bar-bg { background: #e2e8f0; height: 10px; border-radius: 6px; overflow: hidden; margin-top: 12px; }
+    .progress-bar-fill { background: linear-gradient(90deg, #0284c7, #16a34a); height: 100%; width: 0%; transition: width 0.4s ease; }
+
+    /* Dual Tier Cards */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media(max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 0;
+      font-weight: 700;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 6px;
+    }
+    
+    .metrics { display: flex; justify-content: space-around; }
+    .metric { text-align: center; }
+    .metric-val { font-size: 1.8rem; font-weight: 800; }
+    .metric-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+
+    .actuators { display: flex; justify-content: space-around; border-top: 1px solid #f1f5f9; padding-top: 14px; }
+    .actuator-unit { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+    
+    .fan-icon { font-size: 2rem; display: inline-block; filter: grayscale(100%); opacity: 0.25; }
+    .fan-running { filter: none; opacity: 1; color: var(--active-fan); animation: spin linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    .heat-icon { font-size: 2rem; display: inline-block; filter: grayscale(100%); opacity: 0.25; }
+    .heat-active { filter: none; opacity: 1; color: var(--active-heat); animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #dc2626); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 6px #dc2626); } }
+
+    /* Interlock Boxes */
+    .interlock-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 0.85rem; margin-top: 4px; }
+    .interlock-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; font-weight: 500; }
+    .btn-lock { background: #16a34a; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.78rem; }
+    .btn-lock.disabled { background: #dc2626; }
+
+    /* Safety Status Pill */
+    .alarm-pill {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 30px;
+      padding: 10px 24px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      color: #334155;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .alarm-active {
+      border-color: #ef4444;
+      background: #fef2f2;
+      color: #dc2626;
+      animation: flash 1s infinite alternate;
+    }
+    @keyframes flash { from { background: #ffffff; } to { background: #fee2e2; } }
+
+    /* Tech Stack Badges */
+    .tech-stack-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      margin-top: 4px;
+    }
+    .tech-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #475569;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .tech-pill img {
+      height: 18px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    /* Footer Sponsor Bar */
+    .footer-sponsor-bar {
+      margin-top: 24px;
+      padding: 18px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .footer-sponsor-bar img {
+      height: 42px;
+      max-width: 160px;
+      object-fit: contain;
+      transition: transform 0.2s ease;
+    }
+    .footer-sponsor-bar img:hover {
+      transform: scale(1.04);
+    }
+  </style>
+</head>
+<body>
+
+  <h1 style="font-size: 2.5rem; font-weight: 700;">CinnaDry IoT</h1>
+
+  <div class="container">
+    <!-- Master Batch Controls -->
+    <div class="banner">
+      <div class="row">
+        <div class="input-grp">
+          <label>Weight (kg):</label>
+          <input type="number" id="weight-in" min="0.1" max="10" step="0.1" value="1.0" oninput="autoCalculateTime()">
+        </div>
+        <div class="input-grp">
+          <label>Duration (min):</label>
+          <input type="number" id="duration-in" min="1" max="300" value="25">
+        </div>
+        <div>
+          <button class="btn-start" onclick="startBatch()">▶ START</button>
+          <button class="btn-stop" onclick="stopBatch()">⏹ STOP</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-bottom: 0;">
+        <span id="batch-status" style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">System Idle</span>
+        <span style="font-size: 0.95rem; font-weight: 500;">Remaining: <strong id="time-rem" style="color: var(--accent);">25:00</strong></span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="prog-fill"></div>
+      </div>
+    </div>
+
+    <!-- Dual Zones -->
+    <div class="grid">
+      <!-- Top Zone -->
+      <div class="card">
+        <h2 class="card-title">Top Tier</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-val" id="t-top" style="color:var(--temp);">--</div>
+            <div class="metric-label">TEMP (°C)</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val" id="h-top" style="color:var(--humid);">--</div>
+            <div class="metric-label">HUMIDITY (%)</div>
+          </div>
+        </div>
+        <div class="actuators">
+          <div class="actuator-unit">
+            <span class="heat-icon" id="icon-heat-top">♨</span>
+            <span>Heater</span>
+          </div>
+          <div class="actuator-unit">
+            <span class="fan-icon" id="icon-fan-top">⚙</span>
+            <span id="lbl-fan-top">Fan: 0%</span>
+          </div>
+        </div>
+        <div class="interlock-box">
+          <div style="font-weight: 700; margin-bottom: 6px; color: #334155;">Safety Interlocks:</div>
+          <div class="interlock-row">
+            <span>Heater Permission:</span>
+            <button class="btn-lock" id="btn-lock-h-top" onclick="toggleInterlock('heater_top')">ENABLED</button>
+          </div>
+          <div class="interlock-row">
+            <span>Fan Permission:</span>
+            <button class="btn-lock" id="btn-lock-f-top" onclick="toggleInterlock('fan_top')">ENABLED</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Zone -->
+      <div class="card">
+        <h2 class="card-title">Bottom Tier</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-val" id="t-bot" style="color:var(--temp);">--</div>
+            <div class="metric-label">TEMP (°C)</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val" id="h-bot" style="color:var(--humid);">--</div>
+            <div class="metric-label">HUMIDITY (%)</div>
+          </div>
+        </div>
+        <div class="actuators">
+          <div class="actuator-unit">
+            <span class="heat-icon" id="icon-heat-bot">♨</span>
+            <span>Heater</span>
+          </div>
+          <div class="actuator-unit">
+            <span class="fan-icon" id="icon-fan-bot">⚙</span>
+            <span id="lbl-fan-bot">Fan: 0%</span>
+          </div>
+        </div>
+        <div class="interlock-box">
+          <div style="font-weight: 700; margin-bottom: 6px; color: #334155;">Safety Interlocks:</div>
+          <div class="interlock-row">
+            <span>Heater Permission:</span>
+            <button class="btn-lock" id="btn-lock-h-bot" onclick="toggleInterlock('heater_bottom')">ENABLED</button>
+          </div>
+          <div class="interlock-row">
+            <span>Fan Permission:</span>
+            <button class="btn-lock" id="btn-lock-f-bot" onclick="toggleInterlock('fan_bottom')">ENABLED</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Safety Status Tag -->
+    <div style="display: flex; justify-content: center;">
+      <div class="alarm-pill" id="alarm-box">🔔 <span id="alarm-label">System Normal: Safe Operating Conditions</span></div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="tech-stack-row">
+      <div class="tech-pill">
+        <img src="{{ url_for('static', filename='toit_logo.png') }}" alt="Toit Logo">
+        <span>Coded by Toit</span>
+      </div>
+      <div class="tech-pill">
+        <img src="{{ url_for('static', filename='flask_logo.png') }}" alt="Flask Logo">
+        <span>Flask Web Engine</span>
+      </div>
+    </div>
+
+    <!-- Institutional Partner Logos -->
+    <div class="footer-sponsor-bar">
+      <img src="{{ url_for('static', filename='uni_bremen.png') }}" alt="University of Bremen Logo">
+      <img src="{{ url_for('static', filename='comnets_logo_2015_rgb.png') }}" alt="ComNets Logo">
+      <img src="{{ url_for('static', filename='agriconnect-summercamp-logo.png') }}" alt="AgriConnect Summer Camp 2026">
+    </div>
+  </div>
+
+  <script>
+    let currentInterlocks = { heater_top: true, heater_bottom: true, fan_top: true, fan_bottom: true };
+
+    function autoCalculateTime() {
+      const weight = parseFloat(document.getElementById('weight-in').value) || 1.0;
+      const calculatedDuration = Math.round(10 + (weight * 15));
+      document.getElementById('duration-in').value = calculatedDuration;
+    }
+
+    async function startBatch() {
+      const weight = parseFloat(document.getElementById('weight-in').value);
+      const duration = parseFloat(document.getElementById('duration-in').value);
+      await fetch('/api/start-batch', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ weight_kg: weight, duration_minutes: duration })
+      });
+      update();
+    }
+
+    async function stopBatch() {
+      await fetch('/api/stop-batch', { method: 'POST' });
+      update();
+    }
+
+    async function toggleInterlock(device) {
+      const newState = !currentInterlocks[device];
+      await fetch('/api/toggle-interlock', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ device: device, state: newState })
+      });
+      update();
+    }
+
+    function updateLockBtn(btnId, isAllowed) {
+      const btn = document.getElementById(btnId);
+      btn.textContent = isAllowed ? 'ENABLED' : 'FORCED OFF';
+      btn.className = `btn-lock ${isAllowed ? '' : 'disabled'}`;
+    }
+
+    function updatePwmFan(elId, lblId, speed) {
+      const el = document.getElementById(elId);
+      document.getElementById(lblId).textContent = `Fan: ${speed}%`;
+      if (speed > 0) {
+        el.classList.add('fan-running');
+        el.style.animationDuration = `${Math.max(0.2, (100 - speed) / 70)}s`;
+      } else {
+        el.classList.remove('fan-running');
+      }
+    }
+
+    async function update() {
+      try {
+        const res = await fetch('/api/data');
+        const data = await res.json();
+
+        // 1. Metric Readouts
+        document.getElementById('t-top').textContent = data.top_tier.temp.toFixed(1);
+        document.getElementById('h-top').textContent = data.top_tier.humidity.toFixed(1);
+        document.getElementById('t-bot').textContent = data.bottom_tier.temp.toFixed(1);
+        document.getElementById('h-bot').textContent = data.bottom_tier.humidity.toFixed(1);
+
+        // 2. Timer & Progress
+        document.getElementById('prog-fill').style.width = `${data.progress_percent}%`;
+        document.getElementById('time-rem').textContent = data.remaining_time;
+
+        const statusEl = document.getElementById('batch-status');
+        if (data.is_active) {
+          statusEl.textContent = `⚡ Curing Active (${data.weight_kg} kg batch)`;
+          statusEl.style.color = "#0284c7";
+        } else if (data.is_complete) {
+          statusEl.textContent = `✓ Curing Completed (${data.weight_kg} kg batch)`;
+          statusEl.style.color = "#16a34a";
+        } else {
+          statusEl.textContent = "⏹ System Idle / Stopped";
+          statusEl.style.color = "#64748b";
+        }
+
+        // 3. Update Interlock Buttons
+        currentInterlocks = data.interlocks || currentInterlocks;
+        updateLockBtn('btn-lock-h-top', currentInterlocks.heater_top);
+        updateLockBtn('btn-lock-f-top', currentInterlocks.fan_top);
+        updateLockBtn('btn-lock-h-bot', currentInterlocks.heater_bottom);
+        updateLockBtn('btn-lock-f-bot', currentInterlocks.fan_bottom);
+
+        // 4. Actuator Visuals
+        const toggleHeat = (id, active) => {
+          const el = document.getElementById(id);
+          active ? el.classList.add('heat-active') : el.classList.remove('heat-active');
+        };
+        toggleHeat('icon-heat-top', data.top_tier.heater);
+        toggleHeat('icon-heat-bot', data.bottom_tier.heater);
+
+        updatePwmFan('icon-fan-top', 'lbl-fan-top', data.top_tier.fan_speed);
+        updatePwmFan('icon-fan-bot', 'lbl-fan-bot', data.bottom_tier.fan_speed);
+
+        // 5. Overheat Alarm
+        const alarmBox = document.getElementById('alarm-box');
+        if (data.safety.buzzer) {
+          alarmBox.classList.add('alarm-active');
+          document.getElementById('alarm-label').textContent = "WARNING: Over-Temperature Exceeded!";
+        } else {
+          alarmBox.classList.remove('alarm-active');
+          document.getElementById('alarm-label').textContent = "System Normal: Safe Operating Conditions";
+        }
+      } catch (err) {
+        console.error("Dashboard sync error", err);
+      }
+    }
+
+    setInterval(update, 2000);
+    update();
+  </script>
+</body>
+</html>
