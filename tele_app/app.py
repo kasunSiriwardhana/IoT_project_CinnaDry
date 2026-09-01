@@ -7,8 +7,8 @@ import requests
 app = Flask(__name__)
 
 # --- Telegram Credentials ---
-TELEGRAM_TOKEN = "8620439651:AAEdHam9kVJGQTogNe6IAzjZadJCFfDFal8"
-TELEGRAM_CHAT_ID = "8602694858"
+TELEGRAM_TOKEN = "Your_token"
+TELEGRAM_CHAT_ID = "Your_ID"
 
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime
